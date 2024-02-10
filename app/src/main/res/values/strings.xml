@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">Battery Alarm</string>
+    <string name="settings">Settings</string>
+    <string name="share">Share</string>
+    <string name="alarm_disabled_msg">Alarm disabled</string>
+    <string name="alarm_enabled_msg">Alarm enabled, and will activate when your device is fully charged</string>
+
+    <string name="notification_permission">"Notification Permission Required"</string>
+    <string name="notification_desc">"On Android 13 or above, the notification permission is required to show the alarm. " +
+                    "\n"+"\n"+"You can grant/allow this permission in the next dialog to continue."</string>
+
+    <string name="notification_exit">Stop/Exit</string>
+    <string name="notification_cancel">Cancel</string>
+    <string name="enable_state">Enabled</string>
+</resources>
