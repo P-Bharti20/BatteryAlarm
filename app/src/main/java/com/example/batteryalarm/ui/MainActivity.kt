@@ -2,10 +2,8 @@ package com.example.batteryalarm.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.Menu
@@ -20,6 +18,8 @@ import androidx.databinding.DataBindingUtil
 import com.example.batteryalarm.R
 import com.example.batteryalarm.databinding.ActivityMainBinding
 import com.example.batteryalarm.util.BatteryLevelReceiver
+import com.example.batteryalarm.util.NotificationService
+import com.example.batteryalarm.util.SharedPreferenceUtils
 import com.example.batteryalarm.viewmodel.MainViewModel
 
 
@@ -27,44 +27,70 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mBinding: ActivityMainBinding
     private val mViewModel:MainViewModel by viewModels()
     private lateinit var receiver: BatteryLevelReceiver
-    private lateinit var sharedPref:SharedPreferences
+    private lateinit var sharedpref:SharedPreferenceUtils
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mBinding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         receiver= BatteryLevelReceiver(mViewModel)
-        sharedPref = this.getSharedPreferences(getString(R.string.enable_state),Context.MODE_PRIVATE)
+        sharedpref= SharedPreferenceUtils()
         initView()
+        updateAlarmButton()
         initAction()
         initObserver()
     }
 
     private fun initView() {
         supportActionBar?.title = "Battery Alarm"
-        mBinding.enableButton.isEnabled = sharedPref.getBoolean(getString(R.string.enable_state),false)
         supportActionBar?.show()
     }
 
     private fun initAction(){
-        if(mViewModel.detachReceiver){
-            unregisterReceiver(receiver)
-            finish()
+       startService(Intent(this, NotificationService::class.java))
+    }
+
+    private fun updateAlarmButton(){
+        mViewModel.enabledStatus=sharedpref.getEnableState(this)
+        if(mViewModel.enabledStatus){
+            mBinding.enableButton.isChecked = true
+            mBinding.notifyIcon.setImageResource(R.drawable.ic_notifications_on)
+            mBinding.message.setText(R.string.alarm_enabled_msg)
+            registerReceiver(receiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            mViewModel.isRegistered=true
+        }
+        else{
+            mBinding.enableButton.isChecked = false
+            mBinding.notifyIcon.setImageResource(R.drawable.ic_notifications_off)
+            mBinding.message.setText(R.string.alarm_disabled_msg)
+            if(mViewModel.isRegistered) {
+                unregisterReceiver(receiver)
+            }
         }
     }
 
     private fun initObserver() {
         mBinding.enableButton.setOnCheckedChangeListener { _, isChecked ->
-            with (sharedPref.edit()) {
-                putBoolean(getString(R.string.enable_state), isChecked)
-                apply()
-            }
+            sharedpref.setEnableState(this,isChecked)
+            updateAlarmButton()
             updateUI()
+        }
+
+        mViewModel.shouldStopLowBatteryAlarm.observeForever { shouldStop ->
+            if (shouldStop) {
+                receiver.stopRingtone()
+            }
+        }
+
+        mViewModel.shouldStopFullChargeAlarm.observeForever { shouldStop ->
+            if (shouldStop) {
+                receiver.stopRingtone()
+            }
         }
     }
 
     @SuppressLint("InlinedApi")
     private fun updateUI() {
-        if (sharedPref.getBoolean(getString(R.string.enable_state),false)) {
+        if (sharedpref.getEnableState(this)) {
             val permissionState = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
             // If the permission is not granted, request it.
             if (permissionState == PackageManager.PERMISSION_DENIED) {
@@ -74,13 +100,6 @@ class MainActivity : AppCompatActivity() {
                     NOTIFICATION_PERMISSION_REQUEST_CODE
                 )
             }
-            mBinding.notifyIcon.setImageResource(R.drawable.ic_notifications_on)
-            mBinding.message.setText(R.string.alarm_enabled_msg)
-            registerReceiver(receiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        }
-        else {
-            mBinding.notifyIcon.setImageResource(R.drawable.ic_notifications_off)
-            mBinding.message.setText(R.string.alarm_disabled_msg)
         }
     }
 
@@ -110,11 +129,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        unregisterReceiver(receiver)
         android.os.Process.killProcess(android.os.Process.myPid())
     }
 
     companion object {
-        const val CHANNEL_ID = "Battery Alarm"
         const val NOTIFICATION_PERMISSION_REQUEST_CODE=1005
     }
 }

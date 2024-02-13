@@ -12,4 +12,6 @@
     <string name="notification_exit">Stop/Exit</string>
     <string name="notification_cancel">Cancel</string>
     <string name="enable_state">Enabled</string>
+    <string name="enabled_text">Enabled</string>
+    <string name="disabled_text">Disabled</string>
 </resources>
